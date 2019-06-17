@@ -1,0 +1,69 @@
+#importing the Training data
+import pandas as pd
+data=pd.read_csv('E:\\Hacker Earth\\Plague\\train.csv')
+data.head()
+
+#Checking the correlation of data
+corr_mat=data.corr()
+corr_mat.head()
+
+#Creating the Modified train data or feature engineering
+from sklearn.preprocessing import LabelEncoder
+from dateutil import parser
+le=LabelEncoder()
+data['WindDir']=le.fit_transform(data['WindDir'])
+data['HiDir']=le.fit_transform(data['HiDir'])
+a = lambda x:pd.to_numeric(parser.parse(x).timestamp())
+data.DateTime=data.DateTime.apply(a)
+data_sample=data.copy()
+data_sample.head()
+#droping 'ArcInt' and 'WindTx' since they have no correlation
+data_sample=data_sample.drop(['ArcInt','WindTx'],axis=1)
+data_sample.to_csv('Modified_train.csv')
+data_sample.head()
+
+data_sample=pd.read_csv('E:\\Hacker Earth\\Plague\\Modified_train.csv')
+data_sample.drop(['Unnamed: 0','ID'],axis=1,inplace=True)
+print (data_sample.columns)
+X=data_sample.iloc[:,0:27]
+Y=data_sample.iloc[:,27:]
+print (X.columns)  #seperating Train/Test features
+print (Y.columns)
+
+from sklearn.model_selection import train_test_split
+x_train,x_test,y_train,y_test=train_test_split(X,Y,test_size=0.3)
+print(x_train.shape)
+print(y_train.shape)
+
+#Evaluation using Randomforest
+from sklearn.ensemble import RandomForestRegressor
+rf_reg = RandomForestRegressor(n_estimators=400,max_depth=40)
+from sklearn.multioutput import MultiOutputRegressor
+mul_rf = MultiOutputRegressor(rf_reg)
+mul_rf.fit(x_train, y_train)
+y_pred = mul_rf.predict(x_test)
+#check r2 score for one column
+from sklearn.metrics import r2_score
+r2_score(y_test["PC"].tolist(), y_pred[:, 2].tolist())
+
+#Loading and cleaning the Test File
+test_df=pd.read_csv('E:\\Hacker Earth\\Plague\\test.csv')
+print (test_df.shape)
+from dateutil import parser
+b=lambda x:pd.to_numeric(parser.parse(x).timestamp())
+test_df['DateTime']=test_df['DateTime'].apply(b)
+test_df['WindDir']=le.fit_transform(test_df['WindDir'])
+test_df['HiDir']=le.fit_transform(test_df['HiDir'])
+test_df=test_df.drop(['ArcInt','WindTx'],axis=1)
+test_df_f = test_df.iloc[:, 1:]
+print (test_df_f.shape)
+
+#Creating submission file
+test_pred=mul_rf.predict(test_df_f)
+test_pred_result=pd.DataFrame(test_pred)
+print (test_pred_result.head())
+test_pred_result.columns=['PA','PB','PC','PD','PE','PF','PG']
+test_pred_result.insert(0,'ID',test_df_id)
+test_pred_result = test_pred_result.round(0)
+print(test_pred_result.head())
+test_pred_result.to_csv('submission.csv',index=False)
